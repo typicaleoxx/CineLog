@@ -109,3 +109,20 @@ def test_remove_from_watchlist_missing_entry_raises(app, sample_user, sample_fil
     with app.app_context():
         with pytest.raises(NotInWatchlistError):
             remove_from_watchlist(user_id=sample_user, film_id=sample_film)
+
+
+# ── Visibility ────────────────────────────────────────────────────────────────
+
+def test_add_to_watchlist_allows_private_entry(app, sample_user, sample_film):
+    """
+    Passing public=False should store the entry with public set to False.
+    """
+    with app.app_context():
+        entry = add_to_watchlist(user_id=sample_user, film_id=sample_film, public=False)
+
+        assert entry.public is False
+
+        stored = WatchlistEntry.query.filter_by(
+            user_id=sample_user, film_id=sample_film
+        ).first()
+        assert stored.public is False
