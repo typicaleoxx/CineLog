@@ -10,6 +10,7 @@ from models import User, Film, WatchlistEntry
 from services.watchlist_service import (
     add_to_watchlist,
     remove_from_watchlist,
+    get_watchlist,
     AlreadyInWatchlistError,
     NotInWatchlistError,
 )
@@ -126,3 +127,33 @@ def test_add_to_watchlist_allows_private_entry(app, sample_user, sample_film):
             user_id=sample_user, film_id=sample_film
         ).first()
         assert stored.public is False
+
+
+# ── Sort order ────────────────────────────────────────────────────────────────
+
+def test_get_watchlist_returns_newest_first(app, sample_user):
+    """
+    get_watchlist() should return entries sorted by date_added descending,
+    so the most recently added film appears first.
+    """
+    with app.app_context():
+        from datetime import datetime, timezone, timedelta
+
+        film_a = Film(title="Alien", year=1979, genre="Horror")
+        film_b = Film(title="Blade Runner", year=1982, genre="Sci-Fi")
+        db.session.add_all([film_a, film_b])
+        db.session.commit()
+
+        earlier = datetime.now(timezone.utc) - timedelta(days=5)
+        later = datetime.now(timezone.utc)
+
+        entry_a = WatchlistEntry(user_id=sample_user, film_id=film_a.id, date_added=earlier)
+        entry_b = WatchlistEntry(user_id=sample_user, film_id=film_b.id, date_added=later)
+        db.session.add_all([entry_a, entry_b])
+        db.session.commit()
+
+        watchlist = get_watchlist(sample_user)
+        titles = [f["title"] for f in watchlist]
+
+        assert titles[0] == "Blade Runner"
+        assert titles[1] == "Alien"
